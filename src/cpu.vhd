@@ -5,7 +5,7 @@ use ieee.numeric_std.all;
 -- Eloise dos Santos Ruiz - 24002341
 -- Pedro Henrique Coan Zin - 24026585
 -- Tiago Aureliano Lança Rodriguez - 25004196
--- Ayrton
+-- Ayrton Senna Barros Carvalho - 13271242
 
 entity cpu is
     port (
