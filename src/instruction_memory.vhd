@@ -24,7 +24,7 @@ architecture rtl of instruction_memory is
         3  => x"1850",
         4  => x"2A50",
         5  => x"3C50",
-        6  => x"4E80",
+        6  => x"4E88",
         7  => x"7204",
         8  => x"6004",
         9  => x"8282",
@@ -39,13 +39,8 @@ architecture rtl of instruction_memory is
 
 begin
 
-    process(all)
-    begin
-        data_out <= (others => '0');
-
-        if unsigned(address) < 256 then
-            data_out <= rom(to_integer(unsigned(address)));
-        end if;
-    end process;
+    data_out <= rom(to_integer(unsigned(address)))
+                when unsigned(address) < 256
+                else (others => '0');
 
 end architecture;

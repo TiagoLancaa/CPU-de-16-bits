@@ -11,7 +11,7 @@ CONTENT BEGIN
     03 : 1850;  -- SUB  R4, R1, R2  (R4 <- R1 - R2 = 5)
     04 : 2A50;  -- AND  R5, R1, R2  (R5 <- R1 AND R2 = 0)
     05 : 3C50;  -- OR   R6, R1, R2  (R6 <- R1 OR R2 = 15)
-    06 : 4E80;  -- SLT  R7, R2, R1  (R7 <- 1, pois R2 < R1)
+    06 : 4E88;  -- SLT  R7, R2, R1  (R7 <- 1, pois R2 < R1)
     07 : 7204;  -- ST   R1, R0, 4   (Memória[4] <- R1 [valor 10])
     08 : 6004;  -- LD   R0, R0, 4   (R0 <- Memória[4] [valor 10])
     09 : 8282;  -- BEQ  R1, R2, 2   (Se R1 == R2 pula 2 - falso, segue)

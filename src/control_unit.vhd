@@ -2,55 +2,59 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity control_unit is     --entidade da unidade de controle
+entity control_unit is
     port (
-        clk           : in  std_logic;      -- entrade de clock (sincronizada com botão de debounce ou gerador de clock) 
-        reset         : in  std_logic;      -- entrada de reset assíncrono (reiniciar a CPU)
-        opcode        : in  std_logic_vector(3 downto 0);   -- 4 bits mais significativos da instrução (operação a ser realizada)
-        pc_write      : out std_logic;      -- habilita a escrita incondicional no PC (Fetch e Jump)
-        pc_write_cond : out std_logic;      -- habilita a escrita consicional no PC (Branch)
-        i_or_d        : out std_logic;      -- seleciona entre o endereço do PC (0) ou endereço da ULA (1) para acessar a memória
-        mem_read      : out std_logic;      -- habilita a leitura da memória    
-        mem_write     : out std_logic;      -- habilita a escrita na memória
-        ir_write      : out std_logic;      -- habilita a escrita no registrador de instrução (IR)
-        reg_write     : out std_logic;      -- habilita a escrita no banco de registradores
-        mem_to_reg    : out std_logic;      -- seleciona entre o dado da memória (1) ou o resultado da ULA (0) para escrever no banco de registradores
-        alu_src_a     : out std_logic;      -- seleciona entre o registrador A (0) ou o PC (1) como entrada A da ULA
-        alu_src_b     : out std_logic_vector(1 downto 0);       -- seleciona entre o registrador B (00), constante 4 (01), imediato (10) ou deslocamento (11) como entrada B da ULA
-        alu_op        : out std_logic_vector(2 downto 0);       -- seleciona a operação da ULA: 000=AND, 001=OR, 010=ADD, 110=SUB, 111=SLT, 100=BEQ/BNE
-        pc_src        : out std_logic_vector(1 downto 0);       -- seletor da fonte que atualiza o PC: 00=ULA, 01=ULA (Branch), 10=Jump
-        state_leds    : out std_logic_vector(7 downto 0)        -- LEDs que indicam o estado atual da máquina de estados
+        clk            : in  std_logic;
+        reset          : in  std_logic;
+        step           : in  std_logic;
+        opcode         : in  std_logic_vector(3 downto 0);
+        pc_write       : out std_logic;
+        pc_write_cond  : out std_logic;
+        branch_ne      : out std_logic;
+        mem_read       : out std_logic;
+        mem_write      : out std_logic;
+        ir_write       : out std_logic;
+        reg_write      : out std_logic;
+        mem_to_reg     : out std_logic;
+        reg_read_b_sel : out std_logic;
+        alu_src_a      : out std_logic;
+        alu_src_b      : out std_logic_vector(1 downto 0);
+        alu_op         : out std_logic_vector(2 downto 0);
+        pc_src         : out std_logic_vector(1 downto 0);
+        state_leds     : out std_logic_vector(7 downto 0)
     );
 end entity control_unit;
 
 architecture behavioral of control_unit is
 
-    type state_type is (    -- enum de estados da máquina multiciclo
-        FETCH,              -- busca da instrução na memória e incremento do PC
-        DECODE,             -- decodificação do opcode e leitura dos registradores
-        EXEC_R,             -- execução da operação aritmética ou lógica (R-type)
-        WB_R,               -- gravação do resultado da operação R-type no registrador Ri
-        EXEC_ADDI,          -- execução da operação aritmética ADDI (Rj + imediato)
-        WB_I,               -- gravação do resultado de ADDI no registrador Ri
-        MEM_ADDR,           -- cálculo do endereço efetivo de memória (Rj + imediato) para LS e ST
-        MEM_READ,           -- leitura da memória (ciclo de acesso para LD)
-        MEM_WB,             -- gravação do dado lido da memória no registrador Ri
-        MEM_WRITE,          -- escrita do dado de Ri na memória (ciclo de acesso para ST)
-        BRANCH_BEQ,         -- verificação de igualdade dos operandos e atualização condicional do PC (BEQ)
-        BRANCH_BNE,         -- verificação de desigualdade dos operandos e atualização condicional do PC (BNE)
-        JUMP                -- atualização incondicional do PC (JUMP)
+    type state_type is (
+        FETCH,
+        DECODE,
+        EXEC_R,
+        WB_R,
+        EXEC_ADDI,
+        WB_I,
+        MEM_ADDR,
+        MEM_READ,
+        MEM_WB,
+        MEM_WRITE,
+        BRANCH_BEQ,
+        BRANCH_BNE,
+        JUMP
     );
 
-    signal current_state, next_state : state_type; --sinais internos para armazenar o estado atual e o próximo estado da FSM
+    signal current_state, next_state : state_type;
 
 begin
-    --Lógica combinacional de Transição de estados
+
     process(clk, reset)
     begin
         if reset = '1' then
             current_state <= FETCH;
         elsif rising_edge(clk) then
-            current_state <= next_state;
+            if step = '1' then
+                current_state <= next_state;
+            end if;
         end if;
     end process;
 
@@ -122,26 +126,29 @@ begin
         end case;
     end process;
 
-    -- Lógica combinacional de saídas de controle
     process(current_state, opcode)
     begin
-        pc_write      <= '0';
-        pc_write_cond <= '0';
-        i_or_d        <= '0';
-        mem_read      <= '0';
-        mem_write     <= '0';
-        ir_write      <= '0';
-        reg_write     <= '0';
-        mem_to_reg    <= '0';
-        alu_src_a     <= '0';
-        alu_src_b     <= "00";
-        alu_op        <= "010";
-        pc_src        <= "00";
-        state_leds    <= "00000000";
+        pc_write       <= '0';
+        pc_write_cond  <= '0';
+        branch_ne      <= '0';
+        mem_read       <= '0';
+        mem_write      <= '0';
+        ir_write       <= '0';
+        reg_write      <= '0';
+        mem_to_reg     <= '0';
+        reg_read_b_sel <= '0';
+        alu_src_a      <= '0';
+        alu_src_b      <= "00";
+        alu_op         <= "010";
+        pc_src         <= "00";
+        state_leds     <= "00000000";
+
+        if opcode = "0111" or opcode = "1000" or opcode = "1001" then
+            reg_read_b_sel <= '1';
+        end if;
 
         case current_state is
             when FETCH =>
-                mem_read   <= '1';
                 ir_write   <= '1';
                 alu_src_a  <= '0';
                 alu_src_b  <= "01";
@@ -199,7 +206,6 @@ begin
 
             when MEM_READ =>
                 mem_read   <= '1';
-                i_or_d     <= '1';
                 state_leds <= "00100001";
 
             when MEM_WB =>
@@ -209,7 +215,6 @@ begin
 
             when MEM_WRITE =>
                 mem_write  <= '1';
-                i_or_d     <= '1';
                 state_leds <= "00100100";
 
             when BRANCH_BEQ =>
@@ -217,6 +222,7 @@ begin
                 alu_src_b     <= "00";
                 alu_op        <= "100";
                 pc_write_cond <= '1';
+                branch_ne     <= '0';
                 pc_src        <= "01";
                 state_leds    <= "01000000";
 
@@ -225,6 +231,7 @@ begin
                 alu_src_b     <= "00";
                 alu_op        <= "100";
                 pc_write_cond <= '1';
+                branch_ne     <= '1';
                 pc_src        <= "01";
                 state_leds    <= "01000001";
 

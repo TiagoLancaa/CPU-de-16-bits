@@ -35,16 +35,9 @@ begin
         end if;
     end process;
 
-    -- Leitura combinacional
-    process(all)
-    begin
-        read_data <= (others => '0');
-
-        if mem_read = '1' then
-            if unsigned(address) < 256 then
-                read_data <= ram(to_integer(unsigned(address)));
-            end if;
-        end if;
-    end process;
+    -- Leitura combinacional (VHDL-93 compativel)
+    read_data <= ram(to_integer(unsigned(address)))
+                 when (mem_read = '1' and unsigned(address) < 256)
+                 else (others => '0');
 
 end architecture;

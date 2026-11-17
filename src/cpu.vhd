@@ -4,7 +4,7 @@ use ieee.numeric_std.all;
 
 entity cpu is
     generic (
-        -- 500.000 ciclos = ~10 ms em 50 MHz (placa). No testbench, pode ser alterado para 2.
+        -- 500.000 ciclos = ~10 ms em 50 MHz (placa). No testbench, usar valor menor (ex: 2).
         DEBOUNCE_CYCLES : positive := 500_000
     );
     port (
@@ -25,140 +25,126 @@ end entity cpu;
 
 architecture estrutural of cpu is
 
-    -- Sinais de sincronização e debouncer para a chave KEY(0)
-    signal key_meta, key_sync : std_logic_vector(1 downto 0) := "11";
-    signal reset        : std_logic;
-    signal step_level   : std_logic := '1';
-    signal step_pulse   : std_logic := '0';
-    signal stable_count : natural range 0 to DEBOUNCE_CYCLES - 1 := 0;
+    -- Sincronizacao de reset (KEY(1) ativo em nivel baixo na placa)
+    signal key1_meta  : std_logic := '1';
+    signal key1_sync  : std_logic := '1';
+    signal reset      : std_logic;
+    signal step_pulse : std_logic;
 
-    -- Sinais de interconexão entre FSM (Unidade de Controle) e Datapath
-    signal opcode       : std_logic_vector(3 downto 0);
-    signal zero_flag    : std_logic;
-    signal reg_write    : std_logic;
-    signal mem_read     : std_logic;
-    signal mem_write    : std_logic;
-    signal branch       : std_logic;
-    signal bne          : std_logic;
-    signal jump         : std_logic;
-    signal alu_src      : std_logic;
-    signal mem_to_reg   : std_logic;
-    signal alu_op       : std_logic_vector(2 downto 0);
-    signal estado_ctrl  : std_logic_vector(7 downto 0);
+    -- Sinais de interconexao entre FSM (Unidade de Controle) e Datapath
+    signal opcode         : std_logic_vector(3 downto 0);
+    signal pc_write       : std_logic;
+    signal pc_write_cond  : std_logic;
+    signal branch_ne      : std_logic;
+    signal pc_src         : std_logic_vector(1 downto 0);
+    signal ir_write       : std_logic;
+    signal mem_read       : std_logic;
+    signal mem_write      : std_logic;
+    signal reg_write      : std_logic;
+    signal mem_to_reg     : std_logic;
+    signal reg_read_b_sel : std_logic;
+    signal alu_src_a      : std_logic;
+    signal alu_src_b      : std_logic_vector(1 downto 0);
+    signal alu_op         : std_logic_vector(2 downto 0);
+    signal estado_ctrl    : std_logic_vector(7 downto 0);
 
-    -- Barramentos conectados ao Datapath expandido
-    signal pc_sig       : std_logic_vector(15 downto 0);
-    signal alu_sig      : std_logic_vector(15 downto 0);
-    signal rdm_sig      : std_logic_vector(15 downto 0);
-    signal hex4_7_val   : std_logic_vector(15 downto 0);
-
-    -- Conversão binário para display de 7 segmentos (ânodo comum: ativo em '0')
-    function to_7seg(valor : std_logic_vector(3 downto 0)) return std_logic_vector is
-    begin
-        case valor is
-            when "0000" => return "1000000"; -- 0
-            when "0001" => return "1111001"; -- 1
-            when "0010" => return "0100100"; -- 2
-            when "0011" => return "0110000"; -- 3
-            when "0100" => return "0011001"; -- 4
-            when "0101" => return "0010010"; -- 5
-            when "0110" => return "0000010"; -- 6
-            when "0111" => return "1111000"; -- 7
-            when "1000" => return "0000000"; -- 8
-            when "1001" => return "0010000"; -- 9
-            when "1010" => return "0001000"; -- A
-            when "1011" => return "0000011"; -- b
-            when "1100" => return "1000110"; -- C
-            when "1101" => return "0100001"; -- d
-            when "1110" => return "0000110"; -- E
-            when "1111" => return "0001110"; -- F
-            when others => return "1111111";
-        end case;
-    end function;
+    -- Barramentos conectados ao Datapath
+    signal pc_sig     : std_logic_vector(15 downto 0);
+    signal alu_sig    : std_logic_vector(15 downto 0);
+    signal rdm_sig    : std_logic_vector(15 downto 0);
+    signal hex4_7_val : std_logic_vector(15 downto 0);
 
 begin
 
-    -- Circuito Debouncer do botão KEY(0) e sinal de Reset ativo em '1' via KEY(1)
+    -- Sincronizacao de dois estagios para o botao de reset KEY(1)
     process (CLOCK_50)
     begin
         if rising_edge(CLOCK_50) then
-            key_meta   <= KEY(1 downto 0);
-            key_sync   <= key_meta;
-            step_pulse <= '0';
-
-            if key_sync(0) = step_level then
-                stable_count <= 0;
-            elsif stable_count = DEBOUNCE_CYCLES - 1 then
-                step_level   <= key_sync(0);
-                step_pulse   <= not key_sync(0);
-                stable_count <= 0;
-            else
-                stable_count <= stable_count + 1;
-            end if;
+            key1_meta <= KEY(1);
+            key1_sync <= key1_meta;
         end if;
     end process;
 
-    reset <= not key_sync(1);
+    reset <= not key1_sync;
 
-    -- Instanciação da Unidade de Controle (Pedro)
-    uc : entity work.control_unit
+    -- Instanciacao do Debouncer para o botao de clock KEY(0)
+    db_step : entity work.debouncer
+        generic map (
+            DEBOUNCE_CYCLES => DEBOUNCE_CYCLES
+        )
         port map (
             clk       => CLOCK_50,
             reset     => reset,
-            step      => step_pulse,
-            opcode    => opcode,
-            Zero      => zero_flag,
-				pc_write  => pc_write,
-            RegWrite  => pc_write_cond,
-            MemRead   => mem_read,
-            MemWrite  => mem_write,
-            Branch    => branch,
-            BNE       => bne,
-            Jump      => jump,
-            ALUSrc    => alu_src,
-            MemToReg  => mem_to_reg,
-            ALUOp     => alu_op,
-            EstadoLED => estado_ctrl
+            button_in => KEY(0),
+            pulse_out => step_pulse
         );
 
-    -- Instanciação do Datapath expandido (Eloise / Tiago)
+    -- Instanciacao da Unidade de Controle (FSM Multiciclo)
+    uc : entity work.control_unit
+        port map (
+            clk            => CLOCK_50,
+            reset          => reset,
+            step           => step_pulse,
+            opcode         => opcode,
+            pc_write       => pc_write,
+            pc_write_cond  => pc_write_cond,
+            branch_ne      => branch_ne,
+            mem_read       => mem_read,
+            mem_write      => mem_write,
+            ir_write       => ir_write,
+            reg_write      => reg_write,
+            mem_to_reg     => mem_to_reg,
+            reg_read_b_sel => reg_read_b_sel,
+            alu_src_a      => alu_src_a,
+            alu_src_b      => alu_src_b,
+            alu_op         => alu_op,
+            pc_src         => pc_src,
+            state_leds     => estado_ctrl
+        );
+
+    -- Instanciacao do Datapath Multiciclo
     core : entity work.datapath
         port map (
-            clk      => CLOCK_50,
-            reset    => reset,
-            step     => step_pulse,
-            RegWrite => reg_write,
-            MemRead  => mem_read,
-            MemWrite => mem_write,
-            Branch   => branch,
-            BNE      => bne,
-            Jump     => jump,
-            ALUSrc   => alu_src,
-            MemToReg => mem_to_reg,
-            ALUOp    => alu_op,
-            Opcode   => opcode,
-            Zero     => zero_flag,
-            PCOut    => pc_sig,
-            ALUOut   => alu_sig,
-            RDMOut   => rdm_sig
+            clk            => CLOCK_50,
+            reset          => reset,
+            step           => step_pulse,
+            pc_write       => pc_write,
+            pc_write_cond  => pc_write_cond,
+            branch_ne      => branch_ne,
+            pc_src         => pc_src,
+            ir_write       => ir_write,
+            mem_read       => mem_read,
+            mem_write      => mem_write,
+            reg_write      => reg_write,
+            mem_to_reg     => mem_to_reg,
+            reg_read_b_sel => reg_read_b_sel,
+            alu_src_a      => alu_src_a,
+            alu_src_b      => alu_src_b,
+            alu_op         => alu_op,
+            opcode         => opcode,
+            zero_flag      => open,
+            pc_out         => pc_sig,
+            instr_out      => open,
+            alu_out        => alu_sig,
+            rdm_out        => rdm_sig
         );
 
     -- LEDs Verdes exibem o estado atual da Unidade de Controle
     LEDG <= estado_ctrl;
 
-    -- Multiplexação da chave SW(17): '1' exibe RDM (Memória), '0' exibe ULA
+    -- Multiplexacao da chave SW(17): '1' exibe RDM (Memoria), '0' exibe ULA
     hex4_7_val <= rdm_sig when SW(17) = '1' else alu_sig;
 
     -- Mapeamento do Program Counter (PC) nos displays HEX0 a HEX3
-    HEX0 <= to_7seg(pc_sig(3 downto 0));
-    HEX1 <= to_7seg(pc_sig(7 downto 4));
-    HEX2 <= to_7seg(pc_sig(11 downto 8));
-    HEX3 <= to_7seg(pc_sig(15 downto 12));
+    disp_hex0 : entity work.hex_to_7seg port map (hex_in => pc_sig(3 downto 0),   seg_out => HEX0);
+    disp_hex1 : entity work.hex_to_7seg port map (hex_in => pc_sig(7 downto 4),   seg_out => HEX1);
+    disp_hex2 : entity work.hex_to_7seg port map (hex_in => pc_sig(11 downto 8),  seg_out => HEX2);
+    disp_hex3 : entity work.hex_to_7seg port map (hex_in => pc_sig(15 downto 12), seg_out => HEX3);
 
-    -- Mapeamento da saída multiplexada (RDM vs ULA) nos displays HEX4 a HEX7
-    HEX4 <= to_7seg(hex4_7_val(3 downto 0));
-    HEX5 <= to_7seg(hex4_7_val(7 downto 4));
-    HEX6 <= to_7seg(hex4_7_val(11 downto 8));
-    HEX7 <= to_7seg(hex4_7_val(15 downto 12));
+    -- Mapeamento da saida multiplexada (RDM vs ULA) nos displays HEX4 a HEX7
+    disp_hex4 : entity work.hex_to_7seg port map (hex_in => hex4_7_val(3 downto 0),   seg_out => HEX4);
+    disp_hex5 : entity work.hex_to_7seg port map (hex_in => hex4_7_val(7 downto 4),   seg_out => HEX5);
+    disp_hex6 : entity work.hex_to_7seg port map (hex_in => hex4_7_val(11 downto 8),  seg_out => HEX6);
+    disp_hex7 : entity work.hex_to_7seg port map (hex_in => hex4_7_val(15 downto 12), seg_out => HEX7);
 
 end architecture estrutural;

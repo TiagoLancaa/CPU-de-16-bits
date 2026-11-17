@@ -3,6 +3,9 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;   
 
 entity debouncer is
+    generic (
+        DEBOUNCE_CYCLES : positive := 500_000
+    );
     port (
         clk     : in  std_logic;
         reset   : in  std_logic;
@@ -14,9 +17,9 @@ end entity debouncer;
 architecture behavior of debouncer is
     -- Constante de tempo: 50 MHz tem período de 20 ns (50.000.000 ciclos por segundo)
     -- Para esperar 10 milissegundos de estabilidade mecânica: 50.000.000 * 0,010 = 500.000 ciclos
-    constant DEBOUNCE_TIME : integer := 500000; -- 
+    constant DEBOUNCE_TIME : positive := DEBOUNCE_CYCLES; -- 
 
-    signal counter : integer range 0 to DEBOUNCE_TIME := 0;     -- Contador de ciclos: varia de 0 até 499.999 (tempo necessário para confirmar a estabilidade)
+    signal counter : integer range 0 to DEBOUNCE_TIME := 0;     -- Contador de ciclos: varia de 0 até DEBOUNCE_TIME - 1 (tempo necessário para confirmar a estabilidade)
 
     signal sync_0 : std_logic := '1'; -- Primeiro estágio de sincronização (evita metaestabilidade de sinal assíncrono)
     signal sync_1 : std_logic := '1'; -- Segundo estágio de sincronização (completa com o domínio de clock de 50 MHz)
