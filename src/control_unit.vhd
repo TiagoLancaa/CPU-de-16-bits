@@ -35,9 +35,9 @@ architecture behavioral of control_unit is
         EXEC_ADDI,
         WB_I,
         MEM_ADDR,
-        MEM_READ,
+        STATE_MEM_READ,
         MEM_WB,
-        MEM_WRITE,
+        STATE_MEM_WRITE,
         BRANCH_BEQ,
         BRANCH_BNE,
         JUMP
@@ -98,18 +98,18 @@ begin
 
             when MEM_ADDR =>
                 if opcode = "0110" then
-                    next_state <= MEM_READ;
+                    next_state <= STATE_MEM_READ;
                 else
-                    next_state <= MEM_WRITE;
+                    next_state <= STATE_MEM_WRITE;
                 end if;
 
-            when MEM_READ =>
+            when STATE_MEM_READ =>
                 next_state <= MEM_WB;
 
             when MEM_WB =>
                 next_state <= FETCH;
 
-            when MEM_WRITE =>
+            when STATE_MEM_WRITE =>
                 next_state <= FETCH;
 
             when BRANCH_BEQ =>
@@ -204,7 +204,7 @@ begin
                 alu_op     <= "010";
                 state_leds <= "00100000";
 
-            when MEM_READ =>
+            when STATE_MEM_READ =>
                 mem_read   <= '1';
                 state_leds <= "00100001";
 
@@ -213,7 +213,7 @@ begin
                 mem_to_reg <= '1';
                 state_leds <= "00100010";
 
-            when MEM_WRITE =>
+            when STATE_MEM_WRITE =>
                 mem_write  <= '1';
                 state_leds <= "00100100";
 
