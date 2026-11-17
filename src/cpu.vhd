@@ -101,14 +101,15 @@ begin
     reset <= not key_sync(1);
 
     -- Instanciação da Unidade de Controle (Pedro)
-    uc : entity work.unidade_controle
+    uc : entity work.control_unit
         port map (
             clk       => CLOCK_50,
             reset     => reset,
             step      => step_pulse,
-            Opcode    => opcode,
+            opcode    => opcode,
             Zero      => zero_flag,
-            RegWrite  => reg_write,
+				pc_write  => pc_write,
+            RegWrite  => pc_write_cond,
             MemRead   => mem_read,
             MemWrite  => mem_write,
             Branch    => branch,

@@ -1,0 +1,22 @@
+WIDTH=16;
+DEPTH=256;
+
+ADDRESS_RADIX=HEX;
+DATA_RADIX=HEX;
+
+CONTENT BEGIN
+    00 : 520A;  -- ADDI R1, R0, 10  (R1 <- 10)
+    01 : 5405;  -- ADDI R2, R0, 5   (R2 <- 5)
+    02 : 0650;  -- ADD  R3, R1, R2  (R3 <- R1 + R2 = 15)
+    03 : 1850;  -- SUB  R4, R1, R2  (R4 <- R1 - R2 = 5)
+    04 : 2A50;  -- AND  R5, R1, R2  (R5 <- R1 AND R2 = 0)
+    05 : 3C50;  -- OR   R6, R1, R2  (R6 <- R1 OR R2 = 15)
+    06 : 4E80;  -- SLT  R7, R2, R1  (R7 <- 1, pois R2 < R1)
+    07 : 7204;  -- ST   R1, R0, 4   (Memória[4] <- R1 [valor 10])
+    08 : 6004;  -- LD   R0, R0, 4   (R0 <- Memória[4] [valor 10])
+    09 : 8282;  -- BEQ  R1, R2, 2   (Se R1 == R2 pula 2 - falso, segue)
+    0A : 9281;  -- BNE  R1, R2, 1   (Se R1 != R2 pula 1 - verdadeiro, pula o JMP)
+    0B : A00E;  -- JMP  14          (Será pulado pelo BNE)
+    0C : A00C;  -- JMP  12          (Loop infinito de parada no endereço 0C)
+    [0D..FF] : 0000; -- Preenche o restante da memória com zero
+END;
